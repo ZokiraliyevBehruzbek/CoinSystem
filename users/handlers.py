@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from users.models import User
-
+from pydantic import ValidationError
+from users.schemas import Register,Login
 
 user_bp = Blueprint("user", __name__)
 
@@ -8,45 +9,33 @@ user_bp = Blueprint("user", __name__)
 
 @user_bp.route("/register", methods=["POST"])
 async def register():
-    data = request.form
-    username = data.get("username")
-    password = data.get("password")
-    is_superuser = data.get("is_superuser")
-
-    if is_superuser is None or is_superuser == "":
-        is_superuser = False
-    else:
-        is_superuser = str(is_superuser).lower() == "true"
-
-
-    if not username or not password:
-        return jsonify({"error": "All fields are required"}), 400
-
+    data = request.json
     try:
-        await User.create(username=username,password = password,is_superuser=is_superuser)
-        return jsonify({"message": "User registered successfully"}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
+        users = Register(**data)
+        try:
+            await User.create(**users.model_dump())
+            return jsonify({"message": "User registered successfully"}), 201
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    except ValidationError as e:
+        return jsonify({"error": e.errors()}), 400  
+
 @user_bp.route("/login", methods=["POST"])
 async def login():
-    data = request.form
-
-    username = data.get("username")
-    password = data.get("password")
-
-    
-    if not username or not password:
-        return jsonify({"error": "Barcha maydonlar to'ldirilishi kerak"}), 400
-
+    data = request.json
     try:
-        user = await User.get(username=username)
-    except:
-        return jsonify({"error": "Foydalanuvchi username topilmadi."}), 404
+        login_user = Login(**data)
+        try:
+            user = await User.get(username=login_user.username)
+        except:
+            return jsonify({"error": "Foydalanuvchi username topilmadi."}), 404
 
-    if user.password != password:
-        return jsonify({"error": "Parol noto‘g‘ri."}), 403
+        if user.password != login_user.password:
+            return jsonify({"error": "Parol noto‘g‘ri."}), 403
+        
+        coins = user.coins
+
+        return jsonify({"message": f"Succesfully joined your avaible coins {coins}"})
+    except ValidationError as e:
+        return jsonify({"error": e.errors()})
     
-    coins = user.coins
-
-    return jsonify({"message": f"Succesfully joined your avaible coins {coins}"})

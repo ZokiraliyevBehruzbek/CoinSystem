@@ -1,6 +1,6 @@
 from flask import Flask
 from users.handlers import user_bp
-# from shop.handlers import shop_bp
+from shop.handlers import shop_bp
 from admin.handlers import admin_bp
 from tortoise import Tortoise
 from core.settings import TORTOISE_ORM
@@ -10,7 +10,7 @@ import asyncio
 
 app = Flask(__name__)
 app.register_blueprint(user_bp)
-# app.register_blueprint(shop_bp)
+app.register_blueprint(shop_bp, url_prefix="/shop")
 app.register_blueprint(admin_bp)
 
 # ORM-ni ishga tushurish
